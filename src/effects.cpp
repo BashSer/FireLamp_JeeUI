@@ -1054,7 +1054,7 @@ void EffectBBalls::load(){
 // !++ (разобраться отдельно)
 String EffectBBalls::setDynCtrl(UIControl*_val){
   if(_val->getId()==1) _speed = (1550 - EffectCalc::setDynCtrl(_val).toInt() * 3);
-  else if(_val->getId()==3) { _scale = EffectCalc::setDynCtrl(_val).toInt(); if (_scale >= fb->w()) _scale = fb->w()-1; load(); }   // number of balls
+  else if(_val->getId()==3) { _scale = EffectCalc::setDynCtrl(_val).toInt(); if (_scale >= fb->w()) _scale = fb->w()-1; }   // number of balls
   else if(_val->getId()==4) { halo = EffectCalc::setDynCtrl(_val).toInt(); load(); /* LOG(printf_P, PSTR("Halo s:%s i:%d h:%u\n"), _val->getVal(), _val->getVal().toInt(), halo) */; }
   else EffectCalc::setDynCtrl(_val).toInt(); // для всех других не перечисленных контролов просто дергаем функцию базового класса (если это контролы палитр, микрофона и т.д.)
   return String();
@@ -1062,6 +1062,9 @@ String EffectBBalls::setDynCtrl(UIControl*_val){
 
 bool EffectBBalls::bBallsRoutine()
 {
+  // resize must be done inside this routine to provide thread-safety for controls change
+  if (balls.size() != _scale) load();
+
   fb->fade(_scale <= 16 ? 255 : 50);
   hue += (float)speed/ 1024;
   for (auto &bball : balls){
@@ -2288,16 +2291,6 @@ bool EffectFire2018::run()
 
 // ------------------------------ ЭФФЕКТ КОЛЬЦА / КОДОВЫЙ ЗАМОК ----------------------
 // (c) SottNick
-// из-за повторного использоваия переменных от других эффектов теперь в этом коде невозможно что-то понять.
-// поэтому для понимания придётся сперва заменить названия переменных на человеческие. но всё равно это песец, конечно.
-
-//uint8_t ringColor[fb->h()]; // начальный оттенок каждого кольца (оттенка из палитры) 0-255
-//uint8_t huePos[fb->h()]; // местоположение начального оттенка кольца 0-fb->maxWidthIndex()
-//uint8_t shiftHueDir[fb->h()]; // 4 бита на ringHueShift, 4 на ringHueShift2
-////ringHueShift[ringsCount]; // шаг градиета оттенка внутри кольца -8 - +8 случайное число
-////ringHueShift2[ringsCount]; // обычная скорость переливания оттенка всего кольца -8 - +8 случайное число
-//uint8_t currentRing; // кольцо, которое в настоящий момент нужно провернуть
-//uint8_t stepCount; // оставшееся количество шагов, на которое нужно провернуть активное кольцо - случайное от fb->w()/5 до fb->w()-3
 bool EffectRingsLock::run(){
   if (dryrun(3.0))
     return false;
@@ -2311,31 +2304,31 @@ void EffectRingsLock::load(){
 
 // !++
 String EffectRingsLock::setDynCtrl(UIControl*_val){
-  if(_val->getId()==3) { ringWidth = EffectCalc::setDynCtrl(_val).toInt(); ringsSet(); }
-  else EffectCalc::setDynCtrl(_val).toInt(); // для всех других не перечисленных контролов просто дергаем функцию базового класса (если это контролы палитр, микрофона и т.д.)
+  if(_val->getId()==3) {
+    int w = EffectCalc::setDynCtrl(_val).toInt();
+    ringWidth = w > fb->h() ? fb->h() : w;
+    ringsSet();
+  } else
+    EffectCalc::setDynCtrl(_val).toInt(); // для всех других не перечисленных контролов просто дергаем функцию базового класса (если это контролы палитр, микрофона и т.д.)
   return String();
 }
 
 // Установка параметров колец
 void EffectRingsLock::ringsSet(){
-  if (curPalette == nullptr) {
-    return;
-  }
-  //fb->clear();
+  if (curPalette == nullptr) return;
 
-  ringNb = (float)fb->h() / ringWidth + ((fb->h() % ringWidth == 0U) ? 0U : 1U)%fb->h(); // количество колец
-  upRingHue = ringWidth - (ringWidth * ringNb - fb->h()) / 2U; // толщина верхнего кольца. может быть меньше нижнего
-  downRingHue = fb->h() - upRingHue - (ringNb - 2U) * ringWidth; // толщина нижнего кольца = всё оставшееся
+  rings.assign(fb->h() / ringWidth + !!(fb->h() / ringWidth), LockRing());  // количество колец
+  upperRingWidth = ringWidth - (ringWidth * rings.size() - fb->h()) / 2U; // толщина верхнего кольца. может быть меньше нижнего
+  lowerRingWidth = fb->h() - upperRingWidth - (rings.size() - 2U) * ringWidth; // толщина нижнего кольца = всё оставшееся
 
-  for (uint8_t i = 0; i < ringNb; i++)
-  {
-    if (!i) ringColor[i] = 0;
-    ringColor[i] = ringColor[i - 1] + 64; // начальный оттенок кольца из палитры 0-255 за минусом длины кольца, делённой пополам
-    shiftHueDir[i] = random8();
-    huePos[i] = random8(); 
-    stepCount = 0U;
-    currentRing = random(ringNb);
+  rings[0].color = 0;
+  for (size_t i = 1; i != rings.size(); i++){
+    rings[i].color = rings[i].color + 64; // начальный оттенок кольца из палитры 0-255 за минусом длины кольца, делённой пополам
+    rings[i].shiftHueDir = random8();
+    rings[i].huePos = random8(); 
   }
+  stepCount = 0U;
+  currentRing = random(rings.size());
 }
 
 bool EffectRingsLock::ringsRoutine()
@@ -2343,20 +2336,19 @@ bool EffectRingsLock::ringsRoutine()
   uint8_t h, x, y;
   fb->clear();
 
-  for (uint8_t i = 0; i < ringNb; i++)
-  {
+  for (size_t i = 0; i != rings.size(); i++){
     if (i != currentRing) // если это не активное кольцо
     {
-       h = shiftHueDir[i] & 0x0F; // сдвигаем оттенок внутри кольца
+       h = rings[i].shiftHueDir & 0x0F; // сдвигаем оттенок внутри кольца
        if (h > 8U)
          //ringColor[i] += (uint8_t)(7U - h); // с такой скоростью сдвиг оттенка от вращения кольца не отличается
-         ringColor[i]--;
+         rings[i].color--;
        else
          //ringColor[i] += h;
-         ringColor[i]++;
+         rings[i].color++;
     } else {
       if (stepCount == 0) { // если сдвиг активного кольца завершён, выбираем следующее
-        currentRing = random(ringNb);
+        currentRing = random(rings.size());
         do {
           stepCount = fb->w() - 3U - random8((fb->w() - 3U) * 2U); // проворот кольца от хз до хз
         } while (stepCount < fb->w() / 5U || stepCount > 255U - fb->w() / 5U);
@@ -2364,34 +2356,34 @@ bool EffectRingsLock::ringsRoutine()
         if (stepCount > 127U)
           {
             stepCount++;
-            huePos[i] = (huePos[i] + 1U) % fb->w();
+            rings[i].huePos = (rings[i].huePos + 1U) % fb->w();
           }
         else
           {
             stepCount--;
-            huePos[i] = (huePos[i] - 1U + fb->w()) % fb->w();
+            rings[i].huePos = (rings[i].huePos - 1U + fb->w()) % fb->w();
           }
       }
     }
 
     // отрисовываем кольца
-    h = (shiftHueDir[i] >> 4) & 0x0F; // берём шаг для градиента вутри кольца
+    h = (rings[i].shiftHueDir >> 4) & 0x0F; // берём шаг для градиента вутри кольца
     if (h > 8U)
       h = 7U - h;
-    for (uint8_t j = 0U; j < ((i == 0U) ? downRingHue : ((i == ringNb - 1U) ? upRingHue : ringWidth)); j++) // от 0 до (толщина кольца - 1)
+    for (uint8_t j = 0U; j < ((i == 0U) ? lowerRingWidth : ((i == rings.size() - 1U) ? upperRingWidth : ringWidth)); j++) // от 0 до (толщина кольца - 1)
     {
-      y = i * ringWidth + j - ((i == 0U) ? 0U : ringWidth - downRingHue);
+      y = i * ringWidth + j - ((i == 0U) ? 0U : ringWidth - lowerRingWidth);
       for (uint8_t k = 0; k < fb->w() / 2U - 1; k++) // полукольцо
         {
-          x = (huePos[i] + k) % fb->w(); // первая половина кольца
-          fb->at(x, y) = ColorFromPalette(*curPalette, ringColor[i]/* + k * h*/);
-          x = (fb->maxWidthIndex() + huePos[i] - k) % fb->w(); // вторая половина кольца (зеркальная первой)
-          fb->at(x, y) = ColorFromPalette(*curPalette, ringColor[i] + k * h);
+          x = (rings[i].huePos + k) % fb->w(); // первая половина кольца
+          fb->at(x, y) = ColorFromPalette(*curPalette, rings[i].color/* + k * h */);
+          x = (fb->maxWidthIndex() + rings[i].huePos - k) % fb->w(); // вторая половина кольца (зеркальная первой)
+          fb->at(x, y) = ColorFromPalette(*curPalette, rings[i].color + k * h);
         }
       if (fb->w() & 0x01) // если число пикселей по ширине матрицы нечётное, тогда не забываем и про среднее значение
       {
-        x = (huePos[i] + fb->w() / 2U) % fb->w();
-        fb->at(x, y) = ColorFromPalette(*curPalette, ringColor[i] + fb->w() / 2U * h);
+        x = (rings[i].huePos + fb->w() / 2U) % fb->w();
+        fb->at(x, y) = ColorFromPalette(*curPalette, rings[i].color + fb->w() / 2U * h);
       }
     }
   }
@@ -3331,12 +3323,8 @@ String EffectLiquidLamp::setDynCtrl(UIControl*_val) {
     CRGBPalette32 pal;    pal.loadDynamicGradientPalette(dynpal);
     palettes.add(0, pal, 0, 16);
   }
-  else if(_val->getId()==5) { // enable filtering
-    filter = EffectCalc::setDynCtrl(_val).toInt();
-    if (filter < 2) { delete buff; buff = nullptr; delete buff2; buff2 = nullptr; return String(); }
-    if (!buff) buff = new Vector2D<uint8_t>(fb->w(), fb->h());
-    if (!buff2) buff2 = new Vector2D<float>(fb->w(), fb->h());
-  } else if(_val->getId()==6) physic_on = EffectCalc::setDynCtrl(_val).toInt();
+  else if(_val->getId()==5) { filter = EffectCalc::setDynCtrl(_val).toInt(); } // enable filtering }
+  else if(_val->getId()==6) physic_on = EffectCalc::setDynCtrl(_val).toInt();
   else EffectCalc::setDynCtrl(_val).toInt(); // для всех других не перечисленных контролов просто дергаем функцию базового класса (если это контролы палитр, микрофона и т.д.)
   return String();
 }
@@ -3346,8 +3334,18 @@ bool EffectLiquidLamp::routine(){
   position();
   if (physic_on) physic();
 
-  for (unsigned x = 0; x < fb->w(); x++) {
-    for (unsigned y = 0; y < fb->h(); y++) {
+  uint8_t f = filter; // local scope copy to provide thread-safety
+
+  if (f < 2 && (buff || buff2)) {
+    buff.reset();
+    buff2.reset();
+  } else {
+    if (!buff) buff = std::make_unique< Vector2D<uint8_t> >(fb->w(), fb->h());
+    if (!buff2) buff2 = std::make_unique< Vector2D<float> >(fb->w(), fb->h());
+  }
+
+  for (unsigned x = 0; x != fb->maxWidthIndex(); x++) {
+    for (unsigned y = 0; y != fb->maxHeightIndex(); y++) {
       float sum = 0;
       for (auto &p1 : particles){
         if ((unsigned)abs(x - p1.position_x) > p1.tr || (unsigned)abs(y - p1.position_y) > p1.tr) continue;
@@ -3360,7 +3358,7 @@ bool EffectLiquidLamp::routine(){
         if (sum > 255) { sum = 255; break; }
       }
 
-      if (filter < 2) {
+      if (f < 2) {
         fb->at(x, y) = palettes[pidx].GetColor(sum, filter? sum : 255);
       } else {
         buff->at(x,y) = sum;
@@ -3368,7 +3366,7 @@ bool EffectLiquidLamp::routine(){
     }
   }
 
-  if (filter < 2) return true;
+  if (f < 2) return true;
 
   // use Scharr's filter
     static constexpr std::array<int, 9> dh_scharr = {3, 10, 3,  0, 0,   0, -3, -10, -3};
@@ -3391,11 +3389,11 @@ bool EffectLiquidLamp::routine(){
       }
     }
 
-    for (unsigned x = 0; x < (unsigned)fb->maxWidthIndex(); x++) {
-      for (unsigned y = 0; y < (unsigned)fb->maxHeightIndex(); y++) {
+    for (uint16_t x = 0; x != fb->maxWidthIndex(); x++) {
+      for (uint16_t y = 0; y != fb->maxHeightIndex(); y++) {
         float val = buff2->at(x,y);
         val = 1 - (val - min) / (max - min);
-        unsigned step = filter - 1;
+        unsigned step = f - 1;
         while (step) { val *= val; --step; } // почему-то это быстрее чем pow
         fb->at(x, y) = palettes[pidx].GetColor(buff->at(x,y), val * 255);
       }
@@ -4126,13 +4124,6 @@ bool EffectMunch::munchRoutine() {
 }
 
 // ------ Эффект "Цветной шум" (с) https://gist.github.com/StefanPetrick/c856b6d681ec3122e5551403aabfcc68
-DEFINE_GRADIENT_PALETTE( pit ) {
-  0,     3,   3,   3,
-  64,   13,   13, 255,  //blue
-  128,   3,   3,   3,
-  192, 255, 130,   3 ,  //orange
-  255,   3,   3,   3
-};
 
 // !++
 String EffectNoise::setDynCtrl(UIControl*_val){
@@ -4165,9 +4156,9 @@ bool EffectNoise::run() {
   noise.opt[0].e_scaleY = 8000 + noise.lxy(0,fb->maxWidthIndex(), centreY) * 16;
 
   //calculate the noise data
-  for (uint8_t y = 0; y < noise.h; y++) {
+  for (uint8_t y = 0; y != noise.h; y++) {
     uint32_t yoffset = noise.opt[0].e_scaleY * (y - centreY);
-    for (uint8_t x = 0; x < fb->h(); x++) {
+    for (uint8_t x = 0; x != noise.w; x++) {
       uint32_t xoffset = noise.opt[0].e_scaleX * (x - centreX);
 
       uint16_t data = inoise16(noise.opt[0].e_x + xoffset, noise.opt[0].e_y + yoffset, noise.opt[0].e_z);
@@ -4190,7 +4181,7 @@ bool EffectNoise::run() {
       //it´s basically a rainbow mapping with an inverted brightness mask
       CRGB overlay;
       if (palettepos == 14) overlay = CHSV(160,255 - noise.lxy(0,x,y), noise.lxy(0,fb->maxWidthIndex(),fb->maxHeightIndex()) + noise.lxy(0,x,y));
-      else overlay = CHSV(noise.lxy(0,y,x), 255, noise.lxy(0,x,y));
+      else overlay = CHSV(noise.lxy(0,x,y), 255, noise.lxy(0,x,y));
       //here the actual colormapping happens - note the additional colorshift caused by the down right pixel noise[layer][15][15]
       if (palettepos == 4) EffectMath::drawPixelXYF(x, fb->maxHeightIndex() - y, CHSV(160, 0 , noise.lxy(0,x,y)), fb, 35);
       else fb->at(x, y) = ColorFromPalette(palettepos > 0 ? *curPalette : Pal, noise.lxy(0,fb->maxWidthIndex(),fb->maxHeightIndex()) + noise.lxy(0,x,y)) + overlay;
@@ -5603,8 +5594,8 @@ void EffectPopcorn::load() {
 String EffectSmokeballs::setDynCtrl(UIControl*_val){
   if(_val->getId()==1) speedFactor = EffectMath::fmap(EffectCalc::setDynCtrl(_val).toInt(), 1., 255., .02, .1)*EffectCalc::speedfactor; // попробовал разные способы управления скоростью. Этот максимально приемлемый, хотя и сильно тупой.
   else if(_val->getId()==3) _scale = EffectCalc::setDynCtrl(_val).toInt();
+  else if(_val->getId()==5) dimming = EffectCalc::setDynCtrl(_val).toInt();   // dimming control
   else EffectCalc::setDynCtrl(_val).toInt(); // для всех других не перечисленных контролов просто дергаем функцию базового класса (если это контролы палитр, микрофона и т.д.)
-  regen();
   return String();
 }
 
@@ -5614,28 +5605,30 @@ void EffectSmokeballs::load(){
 }
 
 void EffectSmokeballs::regen() {
-  randomSeed(millis());
+  //LOG(println, "Regen Wawes");
   for (auto &w : waves){
-    w.pos = w.reg =  random((fb->w() * 10) - ((fb->w() / 3) * 20)); // сумма maxMin + reg не должна выскакивать за макс.Х
+    //w.pos = w.reg =  random((fb->w() * 10) - ((fb->w() / 3) * 20)); // сумма maxMin + reg не должна выскакивать за макс.Х
+    w.pos = w.reg = 10 * random(fb->w()-fb->w()/8); // сумма maxMin + reg не должна выскакивать за макс.Х
     w.sSpeed = EffectMath::randomf(5., (float)(16 * fb->w()));
     w.maxMin = random((fb->w() / 2) * 10, (fb->w() / 3) * 20);
     w.waveColors = random(0, 9) * 28;
+    //LOG(printf, "Wave pos:%u, mm:%u\n", w.pos, w.maxMin);
   }
 }
 
 bool EffectSmokeballs::run(){
-  uint8_t _amount = map(_scale, 1, 16, 2, waves.size());
+  uint8_t _amount = map(_scale, 1, 32, 2, waves.size()-1);
   shiftUp();
-  fb->dim(240);
+  fb->dim(dimming);
   EffectMath::blur2d(fb, 20);
-  for (byte j = 0; j < _amount; j++) {
+  for (size_t j = 0; j != _amount; j++) {
     waves[j].pos = beatsin16((uint8_t)(waves[j].sSpeed * (speedFactor * 5.)), waves[j].reg, waves[j].maxMin + waves[j].reg, waves[j].waveColors*256, waves[j].waveColors*8);
     EffectMath::drawPixelXYF((float)waves[j].pos / 10., 0.05, ColorFromPalette(*curPalette, waves[j].waveColors), fb);
   }
   EVERY_N_SECONDS(20){
-    for (byte j = 0; j < _amount; j++) {
-      waves[j].reg += random(-20,20);
-      waves[j].waveColors += 28;
+    for (auto &w : waves ){
+      w.reg += random(-20,20);
+      w.waveColors += 28;
     }
   }
 
@@ -6054,7 +6047,7 @@ bool EffectOscillator::run() {
   uint16_t colorCount[3] = {0U, 0U, 0U};
   hue++;
 
-  fb->clear();  // т.к. скорость обсчета мала, очистка экрана приводит к сильному мерцанию на хаб75 панели
+  fb->clear();
   for (uint8_t y = 0; y < oscillatingWorld.h(); y++) {
       for (uint8_t x = 0; x < oscillatingWorld.w(); x++) {
           if (oscillatingWorld.at(x,y).red){
@@ -7084,7 +7077,7 @@ void EffectMaze::GenerateMaze() {
 
   // вход и выход
   maze.at(1,0) = 0;
-  maze.at(maze.w()-2, maze.w()-1) = 0;
+  maze.at(maze.w()-2, maze.h()-1) = 0;
 
   track = random8(0,2);
   color = CHSV(hue += 8, random8(192, 255), 192);

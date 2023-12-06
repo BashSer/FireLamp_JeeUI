@@ -464,11 +464,11 @@ public:
     // TM1637_CLOCK
     void settm24 (bool flag) {flags.tm24 = flag;}
     void settmZero (bool flag) {flags.tmZero = flag;}
-    bool isTm24() {return flags.tm24;}
-    bool isTmZero() {return flags.tmZero;}
-    void setTmBright(uint8_t val) {tmBright = val;}
-    uint8_t getBrightOn() { return tmBright>>4; }
-    uint8_t getBrightOff() { return tmBright&0x0F; }
+    bool isTm24() const {return flags.tm24;}
+    bool isTmZero() const {return flags.tmZero;}
+    void setTmBright(uint8_t val) {tmBright = val; embui.var(TCONST_tmBright, val); }
+    uint8_t getBrightOn() const { return tmBright>>4; }
+    uint8_t getBrightOff() const { return tmBright&0x0F; }
 
     bool getGaugeType() {return flags.GaugeType;}
     void setGaugeType(GAUGETYPE val) {flags.GaugeType = val;}
@@ -498,14 +498,22 @@ public:
     void changePower(bool);
 
     /**
+     * @brief общий переключатель эффектов лампы
+     * в зависимости от режима лампы может переключать эффекты с затуханием или без
+     * @param action - тип переключения на эффект, предыдущий, следующий, конкретный и т.п.
+     * @param effnb - опциональный параметр номер переключаемого эффекта
+     */
+    void switcheffect(EFFSWITCH action, uint16_t effnb = EFF_ENUM::EFF_NONE);
+
+    /**
      * @brief - переключатель эффектов для других методов,
      * может использовать фейдер, выбирать случайный эффект для демо
      * @param EFFSWITCH action - вид переключения (пред, след, случ.)
      * @param fade - переключаться через фейдер или сразу
      * @param effnb - номер эффекта
-     * skip - системное поле - пропуск фейдера
+     * @param skip - системное поле - пропуск фейдера
      */
-    void switcheffect(EFFSWITCH action = SW_NONE, bool fade = false, uint16_t effnb = EFF_ENUM::EFF_NONE, bool skip = false);
+    void switcheffect(EFFSWITCH action, bool fade, uint16_t effnb = EFF_ENUM::EFF_NONE, bool skip = false);
 
     /*
      * включает/выключает "демо"-таймер

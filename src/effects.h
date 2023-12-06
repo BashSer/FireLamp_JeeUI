@@ -617,22 +617,42 @@ public:
 
 // -------------- Эффект "Кодовый замок"
 // (c) SottNick
+//uint8_t ringColor[fb->h()]; // начальный оттенок каждого кольца (оттенка из палитры) 0-255
+//uint8_t huePos[fb->h()]; // местоположение начального оттенка кольца 0-fb->maxWidthIndex()
+//uint8_t shiftHueDir[fb->h()]; // 4 бита на ringHueShift, 4 на ringHueShift2
+////ringHueShift[ringsCount]; // шаг градиета оттенка внутри кольца -8 - +8 случайное число
+////ringHueShift2[ringsCount]; // обычная скорость переливания оттенка всего кольца -8 - +8 случайное число
+//uint8_t currentRing; // кольцо, которое в настоящий момент нужно провернуть
+//uint8_t stepCount; // оставшееся количество шагов, на которое нужно провернуть активное кольцо - случайное от fb->w()/5 до fb->w()-3
 class EffectRingsLock : public EffectCalc {
 private:
-  uint8_t ringWidth; // максимальне количество пикселей в кольце (толщина кольца) от 1 до height / 2 + 1
-  uint8_t ringNb; // количество колец от 2 до height
-  uint8_t downRingHue, upRingHue; // количество пикселей в нижнем (downRingHue) и верхнем (upRingHue) кольцах
+    struct LockRing {
+        uint8_t color;      // начальный оттенок каждого кольца (оттенка из палитры) 0-255
+        uint8_t huePos;     // местоположение начального оттенка кольца 0-w-1
+        uint8_t shiftHueDir;    // 4 бита на ringHueShift, 4 на ringHueShift2
+    };
 
-  std::vector<uint8_t> ringColor{std::vector<uint8_t>(fb->h())};    // начальный оттенок каждого кольца (оттенка из палитры) 0-255
-  std::vector<uint8_t> huePos{std::vector<uint8_t>(fb->h())};       // местоположение начального оттенка кольца 0-w-1
-  std::vector<uint8_t> shiftHueDir{std::vector<uint8_t>(fb->h())};  // 4 бита на ringHueShift, 4 на ringHueShift2
+    uint8_t ringWidth;      // максимальне количество пикселей в кольце (толщина кольца) от 1 до height / 2 + 1
+    //uint8_t ringNb; // количество колец от 2 до height
+    uint8_t lowerRingWidth, upperRingWidth; // количество пикселей в нижнем (lowerRingWidth) и верхнем (upperRingWidth) кольцах
+    uint8_t currentRing; // кольцо, которое в настоящий момент нужно провернуть
+    uint8_t stepCount; // оставшееся количество шагов, на которое нужно провернуть активное кольцо - случайное от w/5 до w-3
+
+    // набор колец
+    std::vector<LockRing> rings{std::vector<LockRing>(2, LockRing())};
+  //std::vector<uint8_t> ringColor{std::vector<uint8_t>(fb->h())};    // начальный оттенок каждого кольца (оттенка из палитры) 0-255
+  //std::vector<uint8_t> huePos{std::vector<uint8_t>(fb->h())};       // местоположение начального оттенка кольца 0-w-1
+  //std::vector<uint8_t> shiftHueDir{std::vector<uint8_t>(fb->h())};  
+
   ////ringHueShift[ringsCount]; // шаг градиета оттенка внутри кольца -8 - +8 случайное число
   ////ringHueShift2[ringsCount]; // обычная скорость переливания оттенка всего кольца -8 - +8 случайное число
-  uint8_t currentRing; // кольцо, которое в настоящий момент нужно провернуть
-  uint8_t stepCount; // оставшееся количество шагов, на которое нужно провернуть активное кольцо - случайное от w/5 до w-3
+
+
+
   void ringsSet();
   bool ringsRoutine();
   String setDynCtrl(UIControl*_val) override;
+
 public:
     EffectRingsLock(LedFB<CRGB> *framebuffer) : EffectCalc(framebuffer){}
     void load() override;
@@ -753,13 +773,13 @@ class EffectLiquidLamp : public EffectCalc {
 
     uint8_t pidx = 0;
     bool physic_on = 1;
-    unsigned filter = 0;
+    uint8_t filter = 0;
 	float speedFactor = 1.0;
     GradientPaletteList palettes;
 
     std::vector<Particle> particles{std::vector<Particle>(LIQLAMP_MIN_PARTICLES, Particle())};
-    Vector2D<uint8_t> *buff = nullptr;
-    Vector2D<float> *buff2 = nullptr;
+    std::unique_ptr< Vector2D<uint8_t> > buff;
+    std::unique_ptr< Vector2D<float> > buff2;
 
     void generate(bool reset = false);
     void position();
@@ -768,7 +788,6 @@ class EffectLiquidLamp : public EffectCalc {
 
 public:
     EffectLiquidLamp(LedFB<CRGB> *framebuffer);
-    virtual ~EffectLiquidLamp() { delete buff; delete buff2; };
     void load() override { generate(true); };
     bool run() override {return routine();};
     String setDynCtrl(UIControl*_val) override;
@@ -1345,9 +1364,10 @@ class EffectSmokeballs: public EffectCalc {
         uint8_t maxMin;
         uint8_t waveColors;
     };
+    uint8_t dimming = 240;
     uint8_t _scale = 1;
     float speedFactor = 0.1;
-    std::vector<Wave> waves{std::vector<Wave>(fb->w())};
+    std::vector<Wave> waves{std::vector<Wave>(fb->w()/4)};      // allow max w/4 waves to run simultaneously
 
     void shiftUp();
     void regen();

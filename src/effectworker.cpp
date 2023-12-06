@@ -253,8 +253,11 @@ void EffectWorker::workerset(uint16_t effect){
   // load effect configuration from a saved file
   curEff.loadeffconfig(effect);
 
+  // не создаем экземпляр калькулятора если воркер неактивен (лампа выключена и т.п.)
   if (!_status) { LOG(println, "W: worker is inactive"); return; }
 
+  // grab mutex
+  std::unique_lock<std::mutex> lock(_mtx);
   switch (static_cast<EFF_ENUM>(effect%256)) // номер может быть больше чем ENUM из-за копирований, находим эффект по модулю
   {
   case EFF_ENUM::EFF_TIME :
@@ -497,6 +500,9 @@ void EffectWorker::workerset(uint16_t effect){
   default:
     worker = std::unique_ptr<EffectNone>(new EffectNone(canvas)); // std::unique_ptr<EffectCalc>(new EffectCalc());
   }
+
+  // release mutex
+  lock.unlock();
 
   if(worker){
     // окончательная инициализация эффекта тут
@@ -837,7 +843,7 @@ uint16_t EffectWorker::getNext()
 }
 
 void EffectWorker::switchEffect(uint16_t effnb, bool twostage){
-  LOG(print, "switchEffect() ");
+  LOG(println, "EffectWorker::switchEffect() ");
   // NOTE: if call has been made to the SAME effect number as the current one, than it MUST be force-switched anyway to recreate EffectCalc object
   // (it's required for a cases like new LedFB has been provided, etc)
   if (effnb == curEff.num) return reset();
@@ -1106,12 +1112,7 @@ void EffectWorker::_rebuild_eff_list(const char *folder){
 
   makeIndexFileFromList();
 }
-/*
-void EffectWorker::setLEDbuffer(LedFB *buff){
-  canvas = buff;
-  reset();    // reset current effect to release old buffer pointer
-}
-*/
+
 void EffectWorker::reset(){
   if (worker) workerset(getCurrent());
 }
@@ -1147,11 +1148,16 @@ void EffectWorker::_runnerHndlr(){
       return;
     }
 
+    // aquire mutex
+    std::unique_lock<std::mutex> lock(_mtx);
     if (worker->run()){
       // effect has rendered a data in buffer, need to call the engine draw it
       display.show();
     }
     // effectcalc returned no data
+
+    // release mutex
+    lock.unlock();
   }
   // Task must self-terminate (if ever)
   vTaskDelete(NULL);
@@ -1164,14 +1170,10 @@ void EffectWorker::start(){
 }
 
 void EffectWorker::stop(){
-  _status = false;
-  if (!_runnerTask_h){
-    // destruct effect object and wipe buffer ONLY if worker is not running
-    // otherwise it's not thread safe to mess with running instance 
-    worker.reset();
-    display.clear();
-  }
-  // task will self destruct on next iteration
+  std::unique_lock<std::mutex> lock(_mtx);
+  _status = false;                  // task will self destruct on next iteration
+  worker.reset();
+  display.clear();
   display.canvasProtect(false);     // force clear persistent flag for frambuffer (if any) 
 }
 

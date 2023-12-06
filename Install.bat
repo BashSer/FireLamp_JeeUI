@@ -6,14 +6,14 @@ echo off
 rem set the code page to UTF8
 chcp 65001 >nul
 rem @chcp 1251>nul
-mode con: cols=88 lines=40
+mode con: cols=88
 
 rem VARIABLES
 set "lamprepo=https://github.com/vortigont/FireLamp_JeeUI.git"
-set "pythondistro=https://www.python.org/ftp/python/3.10.4/python-3.10.4.exe"
-set "pythondistro64=https://www.python.org/ftp/python/3.10.4/python-3.10.4-amd64.exe"
-set "gitdistro=https://github.com/git-for-windows/git/releases/download/v2.39.1.windows.1/Git-2.39.1-32-bit.exe"
-set "gitdistro64=https://github.com/git-for-windows/git/releases/download/v2.39.1.windows.1/Git-2.39.1-64-bit.exe"
+set "pythondistro=https://www.python.org/ftp/python/3.10.11/python-3.10.11.exe"
+set "pythondistro64=https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe"
+set "gitdistro=https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/Git-2.43.0-32-bit.exe"
+set "gitdistro64=https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/Git-2.43.0-64-bit.exe"
 set "repodstdir=FireLamp.vortigont"
 
 
@@ -38,26 +38,30 @@ IF ERRORLEVEL 1 (
     ECHO Git found in PATH
     set "gitcmd=git"
 )
-
-Echo  Attention. For install Python, run this script "As Administrator". 
-Echo  And after completing this step 1, restart your computer.
-Echo  .
-
-:m1
-Echo  #------------------------------------------#-----------------------------------------# 
-Echo  *                  Commands                *                  Команды                * 
-Echo  #------------------------------------------#-----------------------------------------# 
-Echo  *             Install tools                *          Установка инструментов         * 
-Echo  #------------------------------------------#-----------------------------------------#
-Echo  *  Install Python          (step 1)      1 *  Установить Python             (Шаг 1)  * 
-Echo  *  Install Platformio Core (step 2)      2 *  Установить PIO Core           (Шаг 2)  * 
-Echo  *  Install Git for Windows (step 3)      3 *  Установить Git                (Шаг 3)  * 
-Echo  *  Get firmware repository (step 4)      4 *  Получить репозиторий прошивки (Шаг 4)  *
-Echo  #------------------------------------------#-----------------------------------------# 
-Echo  *  Remove Platformio installation        R *  Удалить установку Платформио           * 
-Echo  #----------------------------------------#-#-----------------------------------------#
 Echo.
-Set /p choice="Your choice (Ваш выбор): "
+Echo  ╔═════════════════════════════════════════════════════════════════════════════════════╗
+Echo  ║  [31mAttention.[92m For install Python, run this script [31m"As Administrator"[92m.                 ║
+Echo  ║  And after completing this step 1, restart your computer.                           ║
+Echo  ╟─────────────────────────────────────────────────────────────────────────────────────╢
+Echo  ║  [31mВнимание.[92m Для установки Python, запустите этот скрипт [31m"От имени администратора"[92m.   ║
+Echo  ║  И после выполнения шага 1, перезагрузите компьютер.                                ║
+Echo  ╚═════════════════════════════════════════════════════════════════════════════════════╝
+Echo.
+:m1
+Echo  ╔══════════════════════════════════════════╦══════════════════════════════════════════╗
+Echo  ║                  Commands                ║                  Команды                 ║
+Echo  ╠══════════════════════════════════════════╬══════════════════════════════════════════╣
+Echo  ║               Install tools              ║          Установка инструментов          ║
+Echo  ╠══════════════════════════════════════════╩══════════════════════════════════════════╣
+Echo  ║  Install Python          [step 1]    ► 1 │  Установить Python             [Шаг 1]   ║
+Echo  ║  Install Platformio Core [step 2]    ► 2 │  Установить PIO Core           [Шаг 2]   ║
+Echo  ║  Install Git for Windows [step 3]    ► 3 │  Установить Git                [Шаг 3]   ║
+Echo  ║  Get firmware repository [step 4]    ► 4 │  Получить репозиторий прошивки [Шаг 4]   ║
+Echo  ╠═════════════════════════════════════════════════════════════════════════════════════╣
+Echo  ║  Remove Platformio installation      ► R │  Удалить установку Платформио            ║
+Echo  ╚═════════════════════════════════════════════════════════════════════════════════════╝
+Echo.
+Set /p choice="Your choice [Ваш выбор]: ► "
 
 if "%choice%"=="1" (
 	if "%ARCH%"=="x64" (

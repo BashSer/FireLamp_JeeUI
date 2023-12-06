@@ -28,6 +28,9 @@
 		<a href="#menu" id="menuLink" class="menu-link">
 			<span></span>
 		</a>
+		<div id="update_alert" style="display:none;">Web-ресурсы на файловой системе требуют обновления. Пожалуйста, обновите файлы из репозитория проекта
+			<br>Web-resouce files on filesystem are outdated. Please, update FS content from project's repository
+		</div>
 		<div id="menu"></div>
 		<div id="main"></div>
 		<div id="content"></div>
@@ -120,8 +123,7 @@
 		    </div>
 		{{/if}}
 		{{#if html == "const"}}
-			<div class="pure-u-1 pure-button mr">{{label}}</div>
-			{{#if2 value}}<input type="hidden" id="{{id}}" name="{{id}}" value="{{value}}">{{/if2}}
+			<div id="{{id}}" class="pure-u-1 pure-button mr">{{label}}{{#if2 value}}<input type="hidden" name="{{id}}" value="{{value}}">{{/if2}}</div>
 		{{/if}}
 		{{#if html == "comment"}}
 			<div id="{{id}}" class="comment">{{label}}</div>
@@ -233,6 +235,7 @@
 		</div>
 	</script>
 
+	<script src="js/lodash.custom.js"></script>
 	<script src="js/embui.js"></script>
 	<script src="js/lamp.js"></script>
 </body>
