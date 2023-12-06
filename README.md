@@ -34,6 +34,36 @@ __[CHANGELOG](/CHANGELOG.md)__ | [![PlatformIO CI](https://github.com/vortigont/
 
 <a name="pinouts"></a>
 ## Распиновка
-### ESP32 C3 Dual USB:
-![ESP32 C3 Dual USB](https://github.com/BashSer/FireLamp_JeeUI/blob/a99665cae5eccdcfe502ad324d2508c22c02d9fe/esp32-c3-dual-usb.png)
 
+<details>
+  <summary>ESP32 30PIN:</summary>
+
+  ![ESP32 30PIN](https://github.com/BashSer/FireLamp_JeeUI/blob/5835c8861ec4f3d6f49d37cb4d475c02c7989ea1/esp32-30pin.png)
+
+${\color{green}GREEN}$ - OK to use.
+
+${\color{orange}ORANGE}$ - OK to use, but you need to pay attention because they may have unexpected behaviour, mainly at boot.
+
+${\color{red}RED}$ - NOT recommended to use as inputs or outputs.
+
+|GPIO |Input |Output |Notes |
+|-|-|-|-|
+|0|$${\color{orange}Pulled\ up}$$|$${\color{orange}OK}$$|Outputs PWM signal at boot|
+|1|$${\color{red}TX\ Pin}$$|$${\color{orange}OK}$$|Debug output at boot|
+|2|$${\color{green}OK}$$|$${\color{green}OK}$$|Connected to onboard LED|
+|3|$${\color{orange}OK}$$|$${\color{red}RX\ Pin}$$|HIGH at boot|
+|6, 7, 8, 9, 10, 11|$${\color{red}\-}$$|$${\color{red}\-}$$|Connected to integrated SPI flash. |
+|12|$${\color{orange}OK}$$|$${\color{green}OK}$$||
+|5, 13, 14|$${\color{green}OK}$$|$${\color{green}OK}$$|Outputs PWM signal at boot|
+|4, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33|$${\color{green}OK}$$|$${\color{green}OK}$$||
+|34, 35|$${\color{green}OK}$$|||
+|36, 37, 38, 39|$${\color{green}OK}$$||Input only|
+
+</details>
+
+<details>
+  <summary>ESP32 C3 Dual USB(not working ?):</summary>
+  
+  ![ESP32 C3 Dual USB](https://github.com/BashSer/FireLamp_JeeUI/blob/a99665cae5eccdcfe502ad324d2508c22c02d9fe/esp32-c3-dual-usb.png)
+  
+</details>
