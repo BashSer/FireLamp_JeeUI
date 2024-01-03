@@ -948,7 +948,7 @@ class EffectFireworks : public EffectCalc {
     int16_t _model_h(){ return 2*(fb->h() - 4) + fb->h(); };
     int16_t _x_offset(){ return (_model_w()-fb->w())/2; };
     int16_t _y_offset(){ return (_model_h()-fb->h())/2; };
-    void _screenscale(accum88 a, byte N, byte &screen, byte &screenerr);
+    void _screenscale(accum88 a, uint16_t N, uint16_t &screen, uint16_t &screenerr);
 
 public:
     EffectFireworks(LedFB<CRGB> *framebuffer) : EffectCalc(framebuffer), gDot(std::vector<Dot>(MIN_RCKTS)), gSparks(std::vector<Dot>(NUM_SPARKS)) {}
@@ -1091,7 +1091,7 @@ public:
 // (c) kostyamat (Kostyantyn Matviyevskyy) 2020
 // переделано kDn
 // идея отсюда https://github.com/vvip-68/GyverPanelWiFi/
-#define PATTERNS_BUFFSIZE   20
+#define PATTERNS_BUFFSIZE   10
 class EffectPatterns : public EffectCalc {
 private:
     int8_t patternIdx = -1;
@@ -2191,7 +2191,7 @@ class EffectFlower : public EffectCalc {
     EffectFlower(LedFB<CRGB> *framebuffer) : EffectCalc(framebuffer){}
         bool run() override;
 };
-
+#include "log.h"
 /*
     Effect "Tetsrik clock"
     based on https://github.com/witnessmenow/WiFi-Tetris-Clock
@@ -2221,7 +2221,9 @@ class TetrisClock : public EffectCalc {
     String setDynCtrl(UIControl*_val) override;
 
 	public:
-    TetrisClock(std::shared_ptr< LedFB<CRGB> > framebuffer) : EffectCalc(framebuffer.get()), screen(framebuffer), t_clk(screen), t_m(screen), t_ap(screen) {}
+    TetrisClock(std::shared_ptr< LedFB<CRGB> > framebuffer) : EffectCalc(framebuffer.get()), screen(framebuffer), t_clk(screen), t_m(screen), t_ap(screen) {
+        screen.setRotation(2);
+    }
     ~TetrisClock(){ ts.deleteTask(seconds); }
     void load() override; 
     bool run() override;

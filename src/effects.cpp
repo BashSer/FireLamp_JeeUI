@@ -2052,8 +2052,8 @@ bool EffectRadar::radarRoutine()
     fb->fade(5 + 20 * (float)speed / 255);
     for (float offset = 0.0f; offset < (float)fb->maxDim() /2; offset +=0.25)
     {
-      float x = (float)EffectMath::mapsincos8(false, eff_theta, offset * 4, fb->maxDim() * 4 - offset * 4) / 4.  - width_adj_f;
-      float y = (float)EffectMath::mapsincos8(true, eff_theta, offset * 4, fb->maxDim() * 4 - offset * 4) / 4.  - height_adj_f;
+      float x = EffectMath::mapsincos8(false, eff_theta, offset * 4, fb->maxDim() * 4 - offset * 4) / 4.  - width_adj_f;
+      float y = EffectMath::mapsincos8(true,  eff_theta, offset * 4, fb->maxDim() * 4 - offset * 4) / 4.  - height_adj_f;
       CRGB color = ColorFromPalette(*curPalette, hue, 255 / random8(1, 12));
       EffectMath::drawPixelXYF(x, y, color, fb);
     }
@@ -2064,7 +2064,7 @@ bool EffectRadar::radarRoutine()
     EffectMath::blur2d(fb, beatsin8(5U, 3U, 10U));
     fb->dim(255U - (0 + _scale * 1.5));
 
-    for (uint8_t offset = 0; offset < fb->maxDim() /2; offset++)
+    for (decltype(fb->maxDim()) offset = 0; offset < fb->maxDim() /2; offset++)
     {
       fb->at(EffectMath::mapsincos8(false, eff_theta, offset, fb->maxDim() - offset) - width_adj(),
                EffectMath::mapsincos8(true, eff_theta, offset, fb->maxDim() - offset) - height_adj()) = ColorFromPalette(*curPalette, 255U - (offset * 16U + eff_offset));
@@ -3814,8 +3814,8 @@ void Dot::Move(DotsStore &store, bool flashing){
 
 void EffectFireworks::draw(Dot &d){
     if( !d.show) return;
-    byte ix, xe, xc;
-    byte iy, ye, yc;
+    uint16_t ix, xe, xc;
+    uint16_t iy, ye, yc;
     _screenscale( d.x, _model_w(), ix, xe);
     _screenscale( d.y, _model_h(), iy, ye);
     yc = 255 - ye;
@@ -3900,11 +3900,14 @@ bool EffectFireworks::fireworksRoutine()
     return true;
 }
 
-void EffectFireworks::_screenscale(accum88 a, byte N, byte &screen, byte &screenerr){
-  byte ia = a >> 8;
-  screen = scale8(ia, N);
-  byte m = screen * (256 / N);
-  screenerr = (ia - m) * scale8(255, N);
+void EffectFireworks::_screenscale(accum88 a, uint16_t N, uint16_t &screen, uint16_t &screenerr){
+  //byte ia = a >> 8;
+  //screen = scale8(ia, N);
+  screen = scale16(a, N);
+  //byte m = screen * (256 / N);
+  uint16_t m = screen * (65536 / N);
+  //screenerr = (ia - m) * scale8(255, N);
+  screenerr = (a - m) * scale16(65535, N);
 }
 
 // ------------ Эффект "Тихий Океан"
@@ -4460,7 +4463,7 @@ void EffectPatterns::drawPicture_XY() {
   fb->dim(127);
 
   for (int16_t y = -1; y < fb->h(); y++){
-    for (int16_t x = -1; x < fb->h(); x++){
+    for (int16_t x = -1; x < fb->w(); x++){
 
       auto &in = buff[abs((int)(ysin + y)) % PATTERNS_BUFFSIZE] [abs((int)(xsin + x)) % PATTERNS_BUFFSIZE];
       CHSV color2 = colorMR[in]; // CHSV(HUE_BLUE, 255, 255);
@@ -4487,7 +4490,6 @@ void EffectPatterns::load() {
   colorMR[6] = CHSV(random8(), 255U, 255U);
   colorMR[7].hue = colorMR[6].hue + 96; //(beatsin8(1, 0, 255, 0, 127), 255U, 255U);
 
-  // this is ugly, could use 4 times less buffer for sprite
   for (byte y = 0; y < PATTERNS_BUFFSIZE; y++){
     for (byte x = 0; x < PATTERNS_BUFFSIZE; x++){
       buff[y][x] = pgm_read_byte(&patterns[patternIdx][y % 10U][x % 10U]);
