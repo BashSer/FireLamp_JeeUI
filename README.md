@@ -12,16 +12,19 @@ __[CHANGELOG](/CHANGELOG.md)__ | [![PlatformIO CI](https://github.com/vortigont/
 
 Обсуждение и поддержка данной прошивки идет [на форуме](https://community.alexgyver.ru/threads/wifi-lampa-budilnik-obsuzhdenie-proshivki-firelamp_embui.7257/)
 
+Разработчик поддерживающий проект [vortigont](https://github.com/vortigont/FireLamp_JeeUI) 
+
 
 ## Содержание
 - [WiKi проекта](#WiKi-проекта)
 - [Концепт](#Концепт)
 - [ESP8266 vs ESP32](#esp8266-vs-esp32)
 - [Распиновка](#pinouts)
+- [Home Assistant](№HomeAssistant)
 
 <a name="WiKi-проекта"></a>
 ### WiKi проекта
-Актуальную документацию по проекту можно найти в [WiKi](https://github.com/vortigont/EmbUI/wiki)
+Актуальную документацию по проекту можно найти в [WiKi](https://github.com/vortigont/FireLamp_JeeUI/wiki)
 
 <a name="Концепт"></a>
 ### Концепт
@@ -40,24 +43,13 @@ __[CHANGELOG](/CHANGELOG.md)__ | [![PlatformIO CI](https://github.com/vortigont/
 
   ![ESP32 30PIN](https://github.com/BashSer/FireLamp_JeeUI/blob/5835c8861ec4f3d6f49d37cb4d475c02c7989ea1/esp32-30pin.png)
 
-${\color{green}GREEN}$ - OK to use.
-
-${\color{orange}ORANGE}$ - OK to use, but you need to pay attention because they may have unexpected behaviour, mainly at boot.
-
-${\color{red}RED}$ - NOT recommended to use as inputs or outputs.
-
-|GPIO |Input |Output |Notes |
-|-|-|-|-|
-|0|$${\color{orange}Pulled\ up}$$|$${\color{orange}OK}$$|Outputs PWM signal at boot|
-|1|$${\color{red}TX\ Pin}$$|$${\color{orange}OK}$$|Debug output at boot|
-|2|$${\color{green}OK}$$|$${\color{green}OK}$$|Connected to onboard LED|
-|3|$${\color{orange}OK}$$|$${\color{red}RX\ Pin}$$|HIGH at boot|
-|6, 7, 8, 9, 10, 11|$${\color{red}\-}$$|$${\color{red}\-}$$|Connected to integrated SPI flash. |
-|12|$${\color{orange}OK}$$|$${\color{green}OK}$$||
-|5, 13, 14|$${\color{green}OK}$$|$${\color{green}OK}$$|Outputs PWM signal at boot|
-|4, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33|$${\color{green}OK}$$|$${\color{green}OK}$$||
-|34, 35|$${\color{green}OK}$$|||
-|36, 37, 38, 39|$${\color{green}OK}$$||Input only|
+  |№ PIN| Description|
+  |-----|------------|
+  | VIN | +5V |
+  | GND | -5V |
+  | D4 | LED IN |
+  | D5 | Touch Button TP223 |
+  | D34 | Microphone MAX9814 |
 
 </details>
 
@@ -67,3 +59,30 @@ ${\color{red}RED}$ - NOT recommended to use as inputs or outputs.
   ![ESP32 C3 Dual USB](https://github.com/BashSer/FireLamp_JeeUI/blob/a99665cae5eccdcfe502ad324d2508c22c02d9fe/esp32-c3-dual-usb.png)
   
 </details>
+
+<a name="HomeAssistant"></a>
+## Home Assistant
+<details>
+  <summary>Базовая конфигурация</summary>
+    Добавить в configuration.yaml следующие строки:
+  
+    ```
+    mqtt:
+      - light:
+          schema: template
+          effect_list:
+            - 75
+            - 76
+          command_topic: "EmbUI/08D1F93D787C/post" #подставить MAC-адрес, если префикс не был указан в настройках ESP
+          command_on_template: >
+            { "action": "dev_pwrswitch", "data": {"dev_pwrswitch": true}
+            , "action": "eff_sw_idx", "data": { "eff_sw_idx": {{effect}} }
+            }
+          command_off_template: '{ "action": "dev_pwrswitch", "data": {"dev_pwrswitch": false}}'
+    ```
+  После перезагрузки конфига добавить на панель новый объект и получается следующая карточка:
+
+  ![image](https://github.com/BashSer/FireLamp_JeeUI/assets/37932617/7c2b982e-706f-4ccc-9c1d-706ae40ca56a)
+
+</details>
+
